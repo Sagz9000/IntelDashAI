@@ -1,0 +1,9 @@
+# Use the official ChromaDB image as the base
+FROM chromadb/chroma:0.4.24
+
+# Install netcat-traditional for the healthcheck
+# Use DEBIAN_FRONTEND=noninteractive to prevent interactive prompts during installation
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y netcat-traditional --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/*
+
+# The original image's ENTRYPOINT and CMD will be inherited and used to run ChromaDB

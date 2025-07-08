@@ -1,0 +1,15 @@
+Flask==2.2.2
+PyYAML==6.0
+requests==2.28.1
+Werkzeug==2.2.2
+beautifulsoup4==4.12.3
+lxml==5.2.2
+python-docx==1.1.2
+PyPDF2==3.0.1
+ollama
+chromadb==0.4.24
+langchain
+langchain-community
+langchain-ollama
+langchain-chroma
+numpy==1.26.4 # Pinned NumPy version for compatibility with chromadb

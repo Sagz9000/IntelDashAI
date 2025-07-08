@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    volumes:
+      # Uncomment the line below (and remove the '#' at the beginning of the line)
+      # to mount your local Search directory into the container.
+      # This allows for local search definitions to be reflected in the app.
+       - ./Searches:/app/Searches
+    environment:
+      # These environment variables are used by app.py to connect to Ollama and ChromaDB
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - CHROMA_HOST=chromadb
+      - CHROMA_PORT=8000
+    depends_on:
+      # Ensure web service starts only after ollama and chromadb are healthy
+      ollama:
+        condition: service_healthy
+      chromadb:
+        condition: service_healthy
+    container_name: mitre-bingo-board-web-78
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434" # Expose Ollama's default port
+    volumes:
+      - ollama_models:/root/.ollama # Persistent storage for Ollama models
+      - ./entrypoint.sh:/entrypoint.sh # Mount the entrypoint script
+    container_name: ollama-service-78
+    # Use the custom entrypoint script directly.
+    # The script itself now handles curl installationx and Ollama startup/model pulling.
+    entrypoint: /entrypoint.sh
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 180s # Increased start_period further as model downloads can be slow
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all # Use all available NVIDIA GPUs
+              capabilities: [gpu]
+
+  chromadb:
+    # Build ChromaDB image from custom Dockerfile to include netcat
+    build:
+      context: .
+      dockerfile: Dockerfile.chromadb
+    ports:
+      - "8000:8000" # Expose ChromaDB's default port
+    volumes:
+      - chromadb_data:/chroma/chroma # Persistent storage for ChromaDB data
+    container_name: chromadb-service-78
+    # Let the custom image's inherited entrypoint handle ChromaDB startup
+    healthcheck:
+      # Healthcheck using netcat to check if port 8000 is open
+      test: ["CMD", "bash", "-c", "nc -z localhost 8000"]
+      interval: 10s # Check more frequently
+      timeout: 5s
+      retries: 10 # More retries for robustness
+      start_period: 90s # Give it a bit more time to start the internal server
+
+volumes:
+  ollama_models: # Declares a named volume for Ollama models
+  chromadb_data: # Declares a named volume for ChromaDB data

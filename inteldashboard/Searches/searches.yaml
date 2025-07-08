@@ -1,0 +1,20 @@
+Water_in_the_oceans:
+  query: lets search for stuff
+  tags: mitre.TA0005,mitre.T1562
+  type: ALLTHINGS
+Water_in_the_LAKES:
+  query: lets search for stuff
+  tags: mitre.TA0005,mitre.T1107
+  type: ALLTHINGS
+Water_in_the_SINKS:
+  query: lets search for stuff
+  tags: mitre.TA0005,mitre.T1560
+  type: ALLTHINGS
+Water_in_the_RIVERS:
+  query: lets search for stuff
+  tags: mitre.TA0005,mitre.T1158,mitre.TA003
+  type: ALLTHINGS
+Water_in_the_POOLS:
+  query: lets search for stuff
+  tags: mitre.TA0002,mitre.T1204
+  type: ALLTHINGS
