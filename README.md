@@ -35,7 +35,8 @@ The project consists of several key components:
   - If not using nvidia gpu modify the settings for gpu/cpu type
     
 ![set](aidashboard/ollamachromadb.png)
- - Change Prompt settings.
+ - Change Prompt settings
+ - 
 ![prmt](aidashboard/promptsettings.png)
 
 
