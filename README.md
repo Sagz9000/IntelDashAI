@@ -5,7 +5,7 @@
 This repository provides a platform that combines cybersecurity analytics with synthetic data generation capabilities. It is designed to help users manage threat intelligence, analyze documents, urls, github, and also generate realistic synthetic datasets for testing or simulation purposes—all within an integrated web interface.  The app introduces the use of an AI agent that will learn to produce additional information as it receives more training information.
 
 ## Disclaimer
-This is a POC for primarily for a lab and utilizing an AI agent for intel  
+This is a POC meant primarily for a lab and utilizing an AI agent for intel.  It is a learning exercise and not meant to be perfect.
 Configuration files to build the docker containers are provided
 
 ![matrix](aidashboard/matrix.png)
