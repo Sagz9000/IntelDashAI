@@ -36,7 +36,7 @@ The project consists of several key components:
     
 ![set](aidashboard/ollamachromadb.png)
  - Change Prompt settings.
-[prmt](aidashboard/promptsettings.png)
+![prmt](aidashboard/promptsettings.png)
 
 
 
