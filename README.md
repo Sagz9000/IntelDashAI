@@ -14,7 +14,7 @@ GitHub Repositories: Scan code repositories to find T-codes, extract relevant co
 # AI-Powered RAG Assistant:
 Engage in a natural language conversation with a specialized AI to ask complex cybersecurity questions.
 The AI can query two distinct knowledge bases: the entire MITRE ATT&CK framework or the content you have uploaded.
-The AI is prompted to act as a cybersecurity expert with the persona of "Will" from Good Will Hunting.
+The AI is prompted to act as a cybersecurity expert with the persona.
 Reporting & Data Export: Generate .csv reports for various datasets, including technique coverage, searches missing ATT&CK tags, and OS-specific detection lists.
 
 ## Disclaimer
