@@ -1,12 +1,27 @@
 
 
-# Cybersecurity Analytics & Synthetic Data Generation Platform
+# Cyber Threat Analysis & RAG Assistant
+This application is a comprehensive cybersecurity analysis tool that leverages the MITRE ATT&CK framework and a Retrieval-Augmented Generation (RAG) system to provide deep threat intelligence insights. It allows users to visualize threat coverage, analyze documents and code for threat actor techniques, and interact with an AI assistant to query cybersecurity knowledge.
 
-This repository provides a platform that combines cybersecurity analytics with synthetic data generation capabilities. It is designed to help users manage threat intelligence, analyze documents, urls, github, and also generate realistic synthetic datasets for testing or simulation purposes—all within an integrated web interface.  The app introduces the use of an AI agent that will learn to produce additional information as it receives more training information.
+🚀 **Key Features**
+MITRE ATT&CK Matrix Visualization: Fetches live ATT&CK data to generate an interactive matrix showing tactics, techniques, and your current detection coverage. The matrix can be exported to a .csv file.
+Detection Coverage Analysis: Ingests YAML-based detection rules from local or Git sources to map existing detections against the ATT&CK framework, identifying strengths and gaps.
+
+# Multi-Source Content Analysis:
+Documents: Upload .pdf and .docx files to extract text, identify MITRE Technique IDs (T-codes), and map them to known threat groups.
+URLs: Analyze the content of any webpage for T-codes and associated intelligence.
+GitHub Repositories: Scan code repositories to find T-codes, extract relevant code snippets, and embed the content for AI analysis.
+# AI-Powered RAG Assistant:
+Engage in a natural language conversation with a specialized AI to ask complex cybersecurity questions.
+The AI can query two distinct knowledge bases: the entire MITRE ATT&CK framework or the content you have uploaded.
+The AI is prompted to act as a cybersecurity expert with the persona of "Will" from Good Will Hunting.
+Reporting & Data Export: Generate .csv reports for various datasets, including technique coverage, searches missing ATT&CK tags, and OS-specific detection lists.
 
 ## Disclaimer
 This is a POC meant primarily for a lab and utilizing an AI agent for intel.  It is a learning exercise and not meant to be perfect.
 Configuration files to build the docker containers are provided
+
+
 
 ![matrix](aidashboard/matrix.png)
 
@@ -69,6 +84,22 @@ The project consists of several key components:
   - Sets up environment variables.
   - Ensures that the Ollama service is reachable before pulling and running the required models.
   - Finally, it executes the main command to start the application.
+
+📖 API Endpoints
+The application exposes a REST API for its core functionalities.
+```
+Method	Endpoint	Description
+GET	/api/matrix	Returns the full, processed MITRE ATT&CK matrix data as JSON.
+POST	/api/analyze_document	Uploads and analyzes .pdf or .docx files for T-codes and threat groups.
+POST	/api/analyze_url	Fetches and analyzes a URL's content for T-codes.
+POST	/api/analyze_github_repo	Analyzes a GitHub repository for T-codes and embeds its content.
+POST	/api/ai_query	Sends a natural language query to the RAG-powered AI assistant.
+GET	/api/techniques/{technique_id}/groups	Returns the threat groups known to use a specific technique.
+GET	/api/technique_usage/{group_id}/{technique_id}	Describes how a specific group uses a specific technique.
+GET	/api/missing_tags	Finds detection searches that are not mapped to a MITRE technique.
+GET	/api/os_distribution	Shows the breakdown of detection searches by operating system.
+GET	/api/user_data	Retrieves all content that has been uploaded and embedded by the user.
+```
 
 ## File Structure
 
