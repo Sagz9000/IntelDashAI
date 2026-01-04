@@ -1464,6 +1464,39 @@ def get_user_data():
         print(f"Error retrieving user data from vector store: {e}", flush=True)
         return jsonify({"error": f"Failed to retrieve user data: {str(e)}"}), 500
 
+@app.route('/api/fetch_navigator_url', methods=['POST'])
+def fetch_navigator_url():
+    """
+    Proxy endpoint to fetch external MITRE ATT&CK Navigator layer JSON files.
+    This avoids CORS issues when the browser tries to fetch directly from external domains.
+    """
+    data = request.get_json()
+    if not data or 'url' not in data:
+        return jsonify({"error": "No URL provided in request body."}), 400
+    
+    url = data['url']
+    try:
+        print(f"FETCH_NAVIGATOR: Attempting to fetch layer from: {url}", flush=True)
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        
+        # Verify it's JSON
+        try:
+            layer_data = response.json()
+            return jsonify(layer_data)
+        except ValueError:
+            return jsonify({"error": "The URL did not return a valid JSON response."}), 400
+
+    except requests.exceptions.HTTPError as e:
+        print(f"ERROR: Failed to fetch Navigator URL {url}: {e}", flush=True)
+        return jsonify({"error": f"External server returned an error: {e.response.status_code}"}), e.response.status_code
+    except requests.exceptions.RequestException as e:
+        print(f"ERROR: Request error fetching Navigator URL {url}: {e}", flush=True)
+        return jsonify({"error": f"Failed to connect to the external URL: {str(e)}"}), 502
+    except Exception as e:
+        print(f"ERROR: Unexpected error fetching Navigator URL {url}: {e}", flush=True)
+        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
 if __name__ == '__main__':
     # Initialize ATT&CK data and searches on startup
     print("APP_START: Starting app initialization...", flush=True)

@@ -1,1904 +1,290 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MITRE ATT&CK Coverage Map</title>
+    <title>AIntelMatrix | Threat Intelligence Dashboard</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #f4f4f9; color: #333; margin: 0; padding: 0 15px; }
-        .container { max-width: 98%; margin: 0 auto; }
-        h1 { text-align: center; color: #2c3e50; margin: 20px 0; }
-        #stats { text-align: center; margin-bottom: 20px; font-size: 1.1em; color: #555; }
-        .matrix-container { overflow-x: auto; border: 1px solid #ccc; background-color: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 30px; }
-        .matrix { display: flex; flex-direction: row; }
-        .tactic-column { display: flex; flex-direction: column; text-align: center; border-right: 1px solid #ddd; min-width: 150px; }
-        .tactic-header { background-color: #34495e; color: white; padding: 10px 5px; font-weight: bold; font-size: 0.9em; border-bottom: 1px solid #555; }
-        .technique-cell { padding: 8px 5px; border-bottom: 1px solid #eee; font-size: 0.8em; cursor: pointer; text-align: left; }
-        .technique-cell:hover { background-color: #f0f0f0; }
-        .technique-cell.covered { background-color: #d4edda; color: #155724; } /* Green for covered */
-        .technique-cell.uncovered { background-color: #f8d7da; color: #721c24; } /* Red for uncovered */
-        .technique-cell.covered:hover { background-color: #c3e6cb; }
-        .technique-cell.uncovered:hover { background-color: #f5c6cb; }
-        .technique-name { margin-bottom: 3px; }
-        .sub-techniques-list { font-size: 0.7em; margin-top: 5px; padding-left: 10px; border-top: 1px dashed #ccc; padding-top: 5px; }
-        .sub-techniques-list div { margin-bottom: 2px; }
-        .sub-technique-name { font-style: italic; }
-        .sub-technique-name.covered { color: #155724; }
-        .sub-technique-name.uncovered { color: #721c24; }
-
-        /* Styles for the modal */
-        .modal {
-            display: none; /* Hidden by default */
-            position: fixed; /* Stay in place */
-            z-index: 1000; /* Sit on top */
-            left: 0;
-            top: 0;
-            width: 100%; /* Full width */
-            height: 100%; /* Full height */
-            overflow: auto; /* Enable scroll if needed */
-            background-color: rgba(0,0,0,0.6); /* Black w/ opacity */
-            align-items: center;
-            justify-content: center;
-        }
-        .modal-content {
-            background-color: #fefefe;
-            margin: auto;
-            padding: 20px;
-            border: 1px solid #888;
-            width: 80%;
-            max-width: 700px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            border-radius: 8px;
-            position: relative;
-            max-height: 80vh; /* Limit height for scrolling */
-            overflow-y: auto; /* Enable scrolling for content */
-        }
-        .close-button {
-            color: #aaa;
-            float: right;
-            font-size: 28px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        .close-button:hover,
-        .close-button:focus {
-            color: black;
-            text-decoration: none;
-            cursor: pointer;
-        }
-        .modal-title {
-            color: #2c3e50;
-            margin-top: 0;
-            border-bottom: 1px solid #eee;
-            padding-bottom: 10px;
-        }
-        .modal-section {
-            margin-bottom: 15px;
-        }
-        .modal-section h3 {
-            color: #34495e;
-            margin-bottom: 8px;
-        }
-        .modal-section ul {
-            list-style-type: none;
-            padding: 0;
-            margin: 0;
-        }
-        .modal-section ul li {
-            background-color: #e9ecef;
-            padding: 8px;
-            margin-bottom: 5px;
-            border-radius: 4px;
-            font-size: 0.9em;
-            word-wrap: break-word; /* Ensure long text wraps */
-        }
-        .modal-section ul li a {
-            color: #007bff;
-            text-decoration: none;
-        }
-        .modal-section ul li a:hover {
-            text-decoration: underline;
-        }
-        .modal-section p {
-            font-size: 0.9em;
-            color: #666;
-        }
-
-        /* Loading indicator styles */
-        #loadingIndicator {
-            text-align: center;
-            padding: 20px;
-            font-size: 1.2em;
-            color: #007bff;
-            display: none; /* Hidden by default */
-        }
-        #heatmapLoading {
-            text-align: center;
-            padding: 20px;
-            font-size: 1.2em;
-            color: #007bff;
-            display: none; /* Hidden by default */
-        }
-
-        /* Section styling for collapsible content */
-        .collapsible-section {
-            background-color: #ffffff;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-
-        .collapsible-header {
-            background-color: #e9ecef;
-            padding: 15px 20px;
-            border-bottom: 1px solid #ddd;
-            cursor: pointer;
-            font-size: 1.1em;
-            font-weight: bold;
-            color: #333;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-radius: 8px 8px 0 0; /* Rounded top corners */
-        }
-
-        .collapsible-header:hover {
-            background-color: #dde1e6;
-        }
-
-        .collapsible-header .arrow {
-            font-size: 1.2em;
-            transition: transform 0.3s ease;
-        }
-
-        .collapsible-header.active .arrow {
-            transform: rotate(90deg); /* Rotate arrow when active */
-        }
-
-        .collapsible-content {
-            max-height: 0; /* Initially collapsed */
-            padding: 0 20px; /* Initial padding: 0 top/bottom, 20px left/right */
-            overflow: hidden;
-            transition: max-height 0.5s ease-out, padding 0.5s ease-out; /* Smooth transition for height and padding */
-            border-radius: 0 0 8px 8px; /* Rounded bottom corners */
-            box-sizing: border-box; /* Ensure padding is included in max-height calculation */
-        }
-
-        .collapsible-content.show {
-            max-height: 2000px; /* A large enough value to accommodate content */
-            padding: 20px; /* Full padding when expanded */
-        }
-
-        /* Specific styling for the AI Query section */
-        #aiQuerySection .collapsible-content {
-            background-color: #f9f9f9;
-        }
-
-        #aiQuerySection label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: bold;
-        }
-
-        #aiQuerySection textarea {
-            width: 100%;
-            padding: 10px;
-            margin-bottom: 10px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            box-sizing: border-box; /* Include padding in width */
-            min-height: 80px;
-        }
-
-        #aiQuerySection button {
-            background-color: #007bff;
-            color: white;
-            padding: 10px 15px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 1em;
-            transition: background-color 0.2s ease;
-        }
-
-        #aiQuerySection button:hover {
-            background-color: #0056b3;
-        }
-
-        #aiResponse {
-            margin-top: 20px;
-            padding: 15px;
-            background-color: #e9f5ff;
-            border: 1px solid #b3d7ff;
-            border-radius: 5px;
-            white-space: pre-wrap; /* Preserve whitespace and wrap text */
-            font-family: monospace;
-            font-size: 0.9em;
-        }
-        #aiResponse.error {
-            background-color: #f8d7da;
-            border-color: #f5c6cb;
-            color: #721c24;
-        }
-
-        /* Styles for the file upload section */
-        #fileUploadSection .collapsible-content {
-            background-color: #f9f9f9;
-        }
-
-        #fileInput {
-            margin-bottom: 10px;
-            padding: 8px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            background-color: #fff;
-        }
-        #uploadButton {
-            background-color: #28a745;
-            color: white;
-            padding: 10px 15px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 1em;
-            transition: background-color 0.2s ease;
-        }
-        #uploadButton:hover {
-            background-color: #218838;
-        }
-        #uploadStatus {
-            margin-top: 15px;
-            font-weight: bold;
-            color: #333;
-        }
-        .document-result {
-            background-color: #e2f0f7;
-            border: 1px solid #b8daff;
-            padding: 10px;
-            margin-top: 10px;
-            border-radius: 5px;
-        }
-        .document-result.error {
-            background-color: #f8d7da;
-            border-color: #f5c6cb;
-            color: #721c24;
-        }
-        .document-result h4 {
-            margin-top: 0;
-            color: #0056b3;
-        }
-        .document-result ul {
-            margin-left: 20px;
-        }
-        .document-result p {
-            margin-bottom: 5px;
-        }
-
-        /* Styles for URL Analysis Section */
-        #urlAnalysisSection .collapsible-content {
-            background-color: #f9f9f9;
-        }
-
-        #urlInput {
-            width: 100%;
-            padding: 10px;
-            margin-bottom: 10px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            box-sizing: border-box;
-        }
-
-        #analyzeUrlButton {
-            background-color: #ffc107;
-            color: #333;
-            padding: 10px 15px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 1em;
-            transition: background-color 0.2s ease;
-        }
-
-        #analyzeUrlButton:hover {
-            background-color: #e0a800;
-        }
-
-        #urlAnalysisResult {
-            margin-top: 20px;
-            padding: 15px;
-            background-color: #fff3cd;
-            border: 1px solid #ffeeba;
-            border-radius: 5px;
-        }
-
-        #urlAnalysisResult.error {
-            background-color: #f8d7da;
-            border-color: #f5c6cb;
-            color: #721c24;
-        }
-        
-        /* New styles for the merged UI */
-        .analysis-section { 
-            background-color: #fff; 
-            padding: 20px; 
-            margin: 20px 0; 
-            border-radius: 8px; 
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1); 
-        }
-        .analysis-header { 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            flex-wrap: wrap; 
-            gap: 10px; 
-            margin-bottom: 15px; 
-        }
-        .analysis-title { 
-            margin: 0; 
-        }
-        .button-group { 
-            display: flex; 
-            gap: 10px; 
-            align-items: center;
-        }
-        .toggle-button, .export-button, .layer-button { 
-            background-color: #3498db; 
-            color: white; 
-            padding: 10px 15px; 
-            border: none; 
-            border-radius: 5px; 
-            cursor: pointer; 
-            font-size: 1em; 
-            text-align: center; 
-        }
-        .toggle-button:hover, .export-button:hover, .layer-button:hover { 
-            background-color: #2980b9; 
-        }
-        .export-button { 
-            background-color: #16a085; 
-        }
-        .export-button:hover { 
-            background-color: #1abc9c; 
-        }
-        .content-container { 
-            /* This class is now primarily for the *content* inside collapsible-content,
-               if it needs specific padding/margin that the collapsible-content doesn't provide.
-               It's not used for display toggling anymore. */
-        }
-        #missing-tags-list, #os-dist-list, #doc-analysis-results, #url-analysis-results, #ai-response-area, #github-repo-analysis-results { 
-            list-style-type: none; 
-            padding-left: 0; 
-        }
-        #missing-tags-list li, #os-dist-list li, #doc-analysis-results li, #url-analysis-results li, #github-repo-analysis-results li { 
-            background-color: #fdfdfe; 
-            border: 1px solid #ecf0f1; 
-            padding: 10px; 
-            margin-bottom: 8px; 
-            border-radius: 4px; 
-        }
-        #os-dist-list li { cursor: pointer; }
-        #os-dist-list li:hover { background-color: #eaf2f8; }
-        .missing-search-name, .doc-technique-name, .url-result-heading { font-weight: bold; }
-        .doc-groups, .doc-urls { color: #7f8c8d; font-size: 0.9em; }
-        .doc-urls, .url-results-list { margin-top: 5px; }
-        .doc-urls a, .url-results-list a { display: block; word-break: break-all; }
-        #documentUpload, #navigator-file-input { display: none; } 
-        #layer-list { list-style: none; padding: 0; }
-        #layer-list li { display: flex; align-items: center; gap: 10px; padding: 5px; flex-wrap: wrap;}
-        .layer-color-swatch { width: 15px; height: 15px; border: 1px solid #ccc; display: inline-block; }
-        .remove-layer-btn { cursor: pointer; color: #e74c3c; font-weight: bold; margin-left: auto;}
-        .layer-description { display: none; font-size: 0.9em; text-align: left; padding: 10px; margin-top: 5px; background-color: #f8f9fa; border-top: 1px solid #eee; width: 100%; flex-basis: 100%;}
-        
-        /* Bubble Plot */
-        #bubble-plot-container svg { width: 100%; height: 600px; }
-        .bubble { stroke: #fff; stroke-width: 1.5px; }
-        .bubble-label { font-family: sans-serif; text-anchor: middle; fill: white; pointer-events: none; }
-        .bubble-tooltip { position: absolute; text-align: center; padding: 8px; font: 12px sans-serif; background: lightsteelblue; border: 0px; border-radius: 8px; pointer-events: none; opacity: 0; }
-
-        .url-input-group, .ai-input-group { display: flex; gap: 10px; margin-bottom: 10px; }
-        .url-input-group textarea, .ai-input-group textarea { flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 1em; }
-        .ai-input-group textarea { min-height: 80px; resize: vertical; }
-        .url-input-group button, .ai-input-group button { padding: 10px 15px; background-color: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 1em; text-align: center; }
-        .url-input-group button:hover, .ai-input-group button:hover { background-color: #218838; }
-
-        #ai-response-area { background-color: #e9ecef; padding: 15px; border-radius: 5px; white-space: pre-wrap; word-wrap: break-word; font-family: 'Courier New', Courier, monospace; }
-        
-        /* Modal Styles from original UI */
-        .modal-overlay { 
-            display: none; 
-            position: fixed; 
-            z-index: 1000; 
-            left: 0; 
-            top: 0; 
-            width: 100%; 
-            height: 100%; 
-            overflow: auto; 
-            background-color: rgba(0,0,0,0.5); 
-            justify-content: center; 
-            align-items: center; 
-        }
-        .modal-content { 
-            background-color: #fefefe; 
-            margin: auto; 
-            padding: 20px; 
-            border: 1px solid #888; 
-            width: 80%; 
-            max-width: 700px; 
-            max-height: 90vh; 
-            overflow-y: auto; 
-            border-radius: 8px; 
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3); 
-            position: relative; 
-        }
-        .modal-header { 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            border-bottom: 1px solid #ddd; 
-            padding-bottom: 10px; 
-            margin-bottom: 10px; 
-        }
-        .modal-title { 
-            margin: 0; 
-            font-size: 1.5em; 
-        }
-        .modal-close-btn { 
-            color: #aaa; 
-            font-size: 28px; 
-            font-weight: bold; 
-            cursor: pointer; 
-        }
-        .modal-close-btn:hover, .modal-close-btn:focus { 
-            color: black; 
-            text-decoration: none; 
-        }
-        .coverage-source { 
-            border-bottom: 1px solid #eee; 
-            padding-bottom: 10px; 
-            margin-bottom: 10px; 
-        }
-        .coverage-source:last-child { 
-            border-bottom: none; 
-        }
-        .source-title { 
-            font-weight: bold; 
-            color: #34495e; 
-            margin-bottom: 5px; 
-            font-size: 1.1em; 
-        }
-        .search-item { 
-            border-bottom: 1px solid #eee; 
-            padding-bottom: 5px; 
-            margin-bottom: 5px; 
-        }
-        .search-item:last-child { 
-            border-bottom: none; 
-        }
-        .search-name { 
-            font-weight: bold; 
-        }
-        .search-query { 
-            font-family: 'Courier New', Courier, monospace; 
-            background-color: #ecf0f1; 
-            padding: 10px; 
-            border-radius: 4px; 
-            white-space: pre-wrap; 
-            word-wrap: break-word; 
-            font-size: 14px; 
-            margin-top: 5px; 
-        }
-        .search-os, .usage-details { 
-            font-style: italic; 
-            font-size: 0.9em; 
-            color: #7f8c8d; 
-        }
-        /* Coverage Matrix Colors */
-        .search-covered { background-color: #27ae60 !important; color: white; }
-        .layer-covered { color: #1a425f !important; } /* Darker text for layer-only coverage */
-        .overlap-covered { background-color: #9b59b6 !important; color: white; }
-        .subtechnique-cell { padding-left: 20px; background-color: #fdfdfd; font-size: 11px; }
-        .subtechnique-cell.search-covered { background-color: #a3e9a4 !important; color: #1a532e; }
-        .subtechnique-cell.layer-covered { color: #1a425f !important; }
-        .subtechnique-cell.overlap-covered { background-color: #d7bde2 !important; color: #4a235a; }
-        /* Risk Heatmap Colors */
-        .risk-high { background-color: #e74c3c !important; color: white; } /* Red */
-        .risk-medium { background-color: #f39c12 !important; color: white; } /* Orange */
-        .risk-low { background-color: #2ecc71 !important; color: white; } /* Green */
-
-        /* New styles for group usage items in modal */
-        .group-usage-item {
-            border: 1px solid #dcdcdc;
-            border-radius: 6px;
-            padding: 10px;
-            margin-bottom: 10px;
-            background-color: #fcfcfc;
-        }
-        .group-usage-item h4 {
-            margin-top: 0;
-            margin-bottom: 5px;
-            color: #2c3e50;
-        }
-        .group-usage-item h4 a {
-            text-decoration: none;
-            color: #007bff;
-        }
-        .group-usage-item h4 a:hover {
-            text-decoration: underline;
-        }
-        .group-usage-item .usage-details {
-            font-size: 0.85em;
-            color: #555;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
 </head>
+
 <body>
-    <div class="container">
-        <h1>Threat Intel Dashboard</h1>
-        
-        <!-- AI Agent Section -->
-        <div class="collapsible-section">
-            <div class="collapsible-header" id="aiAgentHeader">
-                AI Agent (MITRE ATT&CK & Custom Knowledge Base)
-                <span class="arrow">&#9654;</span>
-            </div>
-            <div class="collapsible-content" id="aiQuerySection">
-                <p>Ask questions about MITRE ATT&CK techniques, tactics, other cybersecurity threat intel.</p>
-                <div class="ai-query-options">
-                    <label>
-                        <input type="checkbox" id="useUserDataCheckbox">
-                        Query User Data (Documents/URLs/GitHub)
-                    </label>
-                </div>
-                <div class="ai-input-group">
-                    <textarea id="ai-query-input" placeholder="e.g., What is T1059.001? Or, summarize the document I just uploaded." rows="4"></textarea>
-                    <button id="send-ai-query-btn">Ask AI</button>
-                </div>
-                <div id="ai-loading" style="display: none;">Thinking...</div>
-                <div id="ai-response-area"></div>
-            </div>
-        </div>
 
-        <!-- Coverage Matrix Section -->
-        <div class="collapsible-section">
-            <div class="collapsible-header" id="matrixHeader">
-                ATT&CK Coverage Matrix
-                <span class="arrow">&#9654;</span>
-            </div>
-            <div class="collapsible-content" id="matrixContent">
-                <div class="analysis-header">
-                    <h2 class="analysis-title">Coverage Matrix</h2>
-                    <div class="button-group">
-                        <button id="export-matrix-csv-btn" class="export-button">Export Matrix to CSV</button>
+    <!-- App Layout Wrapper -->
+    <div class="app-layout">
+
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <div class="nav-group-title">DASHBOARD & ANALYTICS</div>
+            <a href="#" class="nav-item active" data-target="dashboard-view">
+                <span>Coverage Matrix</span>
+            </a>
+            <a href="#" class="nav-item" data-target="risk-heatmap-view">
+                <span>Risk Heatmap</span>
+            </a>
+            <a href="#" class="nav-item" data-target="bubble-plot-view">
+                <span>Technique Trends</span>
+            </a>
+            <a href="#" class="nav-item" data-target="threat-layers-view">
+                <span>Threat Layers</span>
+            </a>
+
+            <div class="nav-group-title">AI & INTELLIGENCE</div>
+            <a href="#" class="nav-item" data-target="ai-agent-view">
+                <span>AI Agent</span>
+            </a>
+            <a href="#" class="nav-item" data-target="analysis-tools-view">
+                <span>Analysis Tools</span>
+            </a>
+
+            <div class="nav-group-title">MANAGEMENT</div>
+            <a href="#" class="nav-item" data-target="management-view">
+                <span>System Data</span>
+            </a>
+        </nav>
+
+        <!-- Main Content Area -->
+        <div class="flex-column" style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+
+            <!-- Top Header -->
+            <header class="top-header">
+                <div class="branding">
+                    <strong>AIntelMatrix</strong> <span>Dashboard</span>
+                </div>
+                <div style="margin-left: auto;">
+                    <!-- Placeholder for user profile or settings -->
+                </div>
+            </header>
+
+            <!-- Scrollable Content -->
+            <main class="main-content">
+
+                <!-- VIEW: Coverage Matrix (Dashboard) -->
+                <div id="dashboard-view" class="content-view active">
+                    <div class="card">
+                        <h2 class="card-title">ATT&CK Coverage Matrix</h2>
+                        <div class="flex-row mb-4">
+                            <button id="export-matrix-csv-btn" class="btn btn-secondary">Export CSV</button>
+                        </div>
+                        <div id="stats" class="mb-4">Calculating coverage...</div>
+                        <div class="matrix-container" id="attack-matrix-container">
+                            <div id="loadingIndicator" style="padding: 24px; text-align: center;">
+                                <div class="loader"></div> Loading Matrix...
+                            </div>
+                            <div class="matrix" id="attack-matrix"></div>
+                        </div>
                     </div>
                 </div>
-                <div id="stats">Calculating coverage...</div>
-                <div class="matrix-container" id="attack-matrix-container">
-                    <div id="loadingIndicator">Loading ATT&CK Matrix...</div>
-                    <div class="matrix" id="attack-matrix"></div>
-                </div>
-            </div>
-        </div>
 
-        <!-- Threat Group Layers Section -->
-        <div class="collapsible-section">
-            <div class="collapsible-header" id="threatGroupLayersHeader">
-                Threat Group Layers
-                <span class="arrow">&#9654;</span>
-            </div>
-            <div class="collapsible-content" id="threatGroupLayersContent">
-                <div class="analysis-header">
-                    <h2 class="analysis-title">Threat Group Layers</h2>
-                    <div class="button-group">
-                        <input type="file" id="navigator-file-input" accept=".json" multiple>
-                        <label for="navigator-file-input" class="layer-button">Load Navigator Layer(s)</label>
-                        <button id="clear-layers-btn" class="layer-button" style="background-color: #c0392b;">Clear All Layers</button>
+                <!-- VIEW: Risk Heatmap -->
+                <div id="risk-heatmap-view" class="content-view">
+                    <div class="card">
+                        <h2 class="card-title">Risk-Based Heatmap</h2>
+                        <p class="card-description">
+                            Visualize risk based on threat group activity vs. detection coverage.<br>
+                            <span style="color: var(--danger-red);">Red: High Risk</span> (Threat uses, No detection) |
+                            <span style="color: #f39c12;">Orange: Medium Risk</span> (Threat uses, Detected) |
+                            <span style="color: var(--accent-green);">Green: Low Risk</span> (No threat uses, Detected)
+                        </p>
+                        <div class="mb-4">
+                            <button id="generate-heatmap-btn" class="btn btn-primary">Generate Risk Map</button>
+                        </div>
+                        <div class="matrix-container" id="heatmap-matrix-container">
+                            <div id="heatmapLoading" class="hidden" style="padding: 24px; text-align: center;">
+                                Processing...</div>
+                            <div class="matrix" id="heatmap-matrix"></div>
+                        </div>
                     </div>
                 </div>
-                <div id="layer-list-container">
-                    <ul id="layer-list"></ul>
-                </div>
-            </div>
-        </div>
 
-        <!-- Risk-Based Heatmap Section -->
-        <div class="collapsible-section">
-            <div class="collapsible-header" id="riskHeatmapHeader">
-                Risk-Based Heatmap
-                <span class="arrow">&#9654;</span>
-            </div>
-            <div class="collapsible-content" id="heatmap-section-content">
-                <div class="analysis-header">
-                    <h2 class="analysis-title">Risk-Based Heatmap</h2>
-                    <div class="button-group">
-                        <button id="generate-heatmap-btn" class="toggle-button">Generate Risk Map</button>
+                <!-- VIEW: Bubble Plot -->
+                <div id="bubble-plot-view" class="content-view">
+                    <div class="card">
+                        <h2 class="card-title">Technique Likelihood Trends</h2>
+                        <p class="card-description">Most frequent techniques across loaded threat layers.</p>
+                        <div class="mb-4">
+                            <button id="generate-bubble-plot-btn" class="btn btn-primary">Generate Plot</button>
+                        </div>
+                        <div id="bubble-plot-container" style="text-align: center;">
+                            <div id="bubble-plot-loading" class="hidden">Generated Plot...</div>
+                            <svg id="bubble-plot-svg"></svg>
+                        </div>
                     </div>
                 </div>
-                <p>This heatmap shows your risk based on threat group activity vs. your detection coverage. <br>
-                    <span style="color: #e74c3c; font-weight: bold;">Red</span>: High Risk (Threat group uses, you have no detection). <br>
-                    <span style="color: #f39c12; font-weight: bold;">Orange</span>: Medium Risk (Threat group uses, you have a detection). <br>
-                    <span style="color: #2ecc71; font-weight: bold;">Green</span>: Low Risk (No threat group uses, but you have a detection).
-                </p>
-                <div class="matrix-container" id="heatmap-matrix-container">
-                    <div id="heatmapLoading" style="display: none;">Generating Heatmap...</div>
-                    <div class="matrix" id="heatmap-matrix"></div>
-                </div>
-            </div>
-        </div>
 
-        <!-- Technique Likelihood Bubble Plot Section -->
-        <div class="collapsible-section">
-            <div class="collapsible-header" id="bubblePlotHeader">
-                Technique Likelihood Bubble Plot
-                <span class="arrow">&#9654;</span>
-            </div>
-            <div class="collapsible-content" id="bubble-plot-content">
-                <div class="analysis-header">
-                    <h2 class="analysis-title">Technique Likelihood Bubble Plot</h2>
-                    <div class="button-group">
-                        <button id="generate-bubble-plot-btn" class="toggle-button">Generate Bubble Plot</button>
+                <!-- VIEW: Threat Layers -->
+                <div id="threat-layers-view" class="content-view">
+                    <div class="card">
+                        <h2 class="card-title">Threat Group Layers</h2>
+                        <div class="flex-row mb-4">
+                            <!-- File Input Label as Button -->
+                            <label for="navigator-file-input" class="btn btn-primary">
+                                Load Layer File(s)
+                            </label>
+                            <input type="file" id="navigator-file-input" accept=".json" multiple class="hidden">
+
+                            <button id="clear-layers-btn" class="btn btn-secondary"
+                                style="color: var(--danger-red); border-color: var(--danger-red);">Clear All</button>
+                        </div>
+                        <ul id="layer-list" style="list-style: none; padding: 0;"></ul>
                     </div>
                 </div>
-                <p>This plot shows the most common techniques across all loaded threat group layers. Larger bubbles indicate higher frequency.</p>
-                <div id="bubble-plot-container">
-                    <div id="bubble-plot-loading" style="display: none;">Generating Plot...</div>
-                    <svg id="bubble-plot-svg"></svg>
-                </div>
-            </div>
-        </div>
 
-        <!-- Threat Intelligence Document Analysis Section -->
-        <div class="collapsible-section">
-            <div class="collapsible-header" id="documentAnalysisHeader">
-                Threat Intelligence Document Analysis
-                <span class="arrow">&#9654;</span>
-            </div>
-            <div class="collapsible-content" id="doc-analysis-content">
-                <div class="analysis-header">
-                    <h2 class="analysis-title">Threat Intelligence Document Analysis</h2>
-                    <div class="button-group">
-                        <input type="file" id="documentUpload" accept=".docx,.pdf" multiple>
-                        <label for="documentUpload" class="layer-button">Upload Document(s)</label>
+                <!-- VIEW: AI Agent -->
+                <div id="ai-agent-view" class="content-view">
+                    <div class="card">
+                        <h2 class="card-title">AI Security Assistant</h2>
+                        <p class="card-description">Ask questions about MITRE ATT&CK or your uploaded data.</p>
+
+                        <div style="margin-bottom: 16px;">
+                            <label
+                                style="display: flex; align-items: center; gap: 8px; font-weight: 500; font-size: 14px;">
+                                <input type="checkbox" id="useUserDataCheckbox">
+                                Include User Knowledge Base (Docs/URLs/GitHub)
+                            </label>
+                        </div>
+
+                        <div class="mb-4">
+                            <textarea id="ai-query-input" rows="4"
+                                placeholder="e.g. How does APT29 use PowerShell? Summary of dashboard status?"></textarea>
+                        </div>
+                        <div class="mb-4" style="text-align: right;">
+                            <button id="send-ai-query-btn" class="btn btn-primary">Ask AI</button>
+                        </div>
+
+                        <div id="ai-loading" class="hidden mb-4" style="color: var(--primary-color);">Thinking...</div>
+                        <div id="ai-response-area"></div>
                     </div>
                 </div>
-                <p>Upload .docx or .pdf file(s) to extract MITRE ATT&CK techniques and see which threat groups use them. The content will also be ingested by the AI agent.</p>
-                <div id="doc-analysis-loading" style="display: none;">Analyzing Document(s)...</div>
-                <ul id="doc-analysis-results"></ul>
-            </div>
-        </div>
-        
-        <!-- URL Analysis Section -->
-        <div class="collapsible-section">
-            <div class="collapsible-header" id="urlAnalysisHeader">
-                URL Analysis
-                <span class="arrow">&#9654;</span>
-            </div>
-            <div class="collapsible-content" id="url-analysis-content">
-                <div class="analysis-header">
-                    <h2 class="analysis-title">URL Analysis</h2>
-                    <div class="button-group">
-                        <!-- No toggle button needed as content is always shown -->
-                    </div>
-                </div>
-                <p>Enter URLs (one per line) to extract IP addresses, other URLs, and MITRE ATT&CK T-codes from their content. The content will also be ingested by the AI agent.</p>
-                <div class="url-input-group">
-                    <textarea id="url-input" placeholder="Enter URLs (one per line, e.g., https://example.com)" rows="4"></textarea>
-                    <button id="analyze-url-btn">Analyze URL(s)</button>
-                </div>
-                <div id="url-analysis-loading" style="display: none;">Analyzing URL(s)...</div>
-                <div id="url-analysis-results"></div>
-            </div>
-        </div>
 
-        <!-- GitHub Repository Analysis Section -->
-        <div class="collapsible-section">
-            <div class="collapsible-header" id="githubRepoAnalysisHeader">
-                GitHub Repository Analysis
-                <span class="arrow">&#9654;</span>
-            </div>
-            <div class="collapsible-content" id="github-repo-analysis-content">
-                <div class="analysis-header">
-                    <h2 class="analysis-title">GitHub Repository Analysis</h2>
-                    <div class="button-group">
-                        <!-- No toggle button needed as content is always shown -->
-                    </div>
-                </div>
-                <p>Enter GitHub repository URLs (one per line) to fetch and analyze their contents (code, markdown, etc.). The extracted information will be ingested by the AI agent for coding and threat intelligence.</p>
-                <div class="url-input-group">
-                    <textarea id="github-repo-input" placeholder="Enter GitHub repo URLs (one per line, e.g., https://github.com/owner/repo or https://github.com/owner/repo/tree/main/path)" rows="4"></textarea>
-                    <button id="analyze-github-repo-btn">Analyze GitHub Repo(s)</button>
-                </div>
-                <div id="github-repo-analysis-loading" style="display: none;">Analyzing GitHub Repository/Repositories...</div>
-                <div id="github-repo-analysis-results"></div>
-            </div>
-        </div>
+                <!-- VIEW: Analysis Tools -->
+                <div id="analysis-tools-view" class="content-view">
 
-        <!-- User Data Management Section (New Feature) -->
-        <div class="collapsible-section">
-            <div class="collapsible-header" id="userDataManagementHeader">
-                User Data Management
-                <span class="arrow">&#9654;</span>
-            </div>
-            <div class="collapsible-content" id="userDataManagementContent">
-                <p>View all documents and content that have been uploaded or analyzed and stored in the AI agent's knowledge base.</p>
-                <div style="text-align: center; margin-top: 10px;">
-                    <button id="showUserDataBtn" class="action-button">Show All Uploaded Data</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Operating System Analysis Section -->
-        <div class="collapsible-section">
-            <div class="collapsible-header" id="osAnalysisHeader">
-                Operating System Analysis
-                <span class="arrow">&#9654;</span>
-            </div>
-            <div class="collapsible-content" id="os-dist-content">
-                <div class="analysis-header">
-                    <h2 class="analysis-title">Operating System Analysis</h2>
-                    <div class="button-group">
-                        <!-- No toggle button needed as content is always shown -->
+                    <!-- Document Analysis Card -->
+                    <div class="card">
+                        <h2 class="card-title">Document Analysis</h2>
+                        <p class="card-description">Upload .docx/.pdf to extract IoCs and Techniques.</p>
+                        <div class="mb-4">
+                            <label for="documentUpload" class="btn btn-primary">Upload Document(s)</label>
+                            <input type="file" id="documentUpload" accept=".docx,.pdf" multiple class="hidden">
+                        </div>
+                        <div id="doc-analysis-loading" class="hidden">Analyzing...</div>
+                        <ul id="doc-analysis-results"></ul>
                     </div>
-                </div>
-                <p>This report shows the likely target OS for all loaded searches. Click an OS to see the full list of searches.</p>
-                <div id="os-dist-loading">Loading report...</div>
-                <ul id="os-dist-list"></ul>
-            </div>
-        </div>
 
-        <!-- Untagged Searches Report Section -->
-        <div class="collapsible-section">
-            <div class="collapsible-header" id="untaggedSearchesHeader">
-                Untagged Searches Report
-                <span class="arrow">&#9654;</span>
-            </div>
-            <div class="collapsible-content" id="missing-tags-content">
-                <div class="analysis-header">
-                    <h2 class="analysis-title">Untagged Searches Report</h2>
-                    <div class="button-group">
-                        <!-- No toggle button needed as content is always shown -->
-                        <button id="export-missing-csv-btn" class="export-button">Export to CSV</button>
+                    <!-- URL Analysis Card -->
+                    <div class="card">
+                        <h2 class="card-title">URL Analysis</h2>
+                        <textarea id="url-input" rows="3" placeholder="Enter URLs (one per line)"></textarea>
+                        <div class="mt-4 mb-4">
+                            <button id="analyze-url-btn" class="btn btn-primary">Analyze URLs</button>
+                        </div>
+                        <div id="url-analysis-loading" class="hidden">Scanning...</div>
+                        <div id="url-analysis-results"></div>
                     </div>
+
+                    <!-- GitHub Analysis Card -->
+                    <div class="card">
+                        <h2 class="card-title">GitHub Repository Scanner</h2>
+                        <textarea id="github-repo-input" rows="3"
+                            placeholder="Enter Repo URLs (e.g., https://github.com/owner/repo)"></textarea>
+                        <div class="mt-4 mb-4">
+                            <button id="analyze-github-repo-btn" class="btn btn-primary">Scan Repos</button>
+                        </div>
+                        <div id="github-repo-analysis-loading" class="hidden">Cloning & Scanning...</div>
+                        <div id="github-repo-analysis-results"></div>
+                    </div>
+
                 </div>
-                <p>The following searches do not have a valid 'mitre.T...' tag and are not mapped to the framework:</p>
-                <div id="missing-tags-loading">Loading report...</div>
-                <ul id="missing-tags-list"></ul>
-            </div>
+
+                <!-- VIEW: Management -->
+                <div id="management-view" class="content-view">
+
+                    <div class="card">
+                        <h2 class="card-title">Knowledge Base Data</h2>
+                        <p class="card-description">View all ingested content available to the AI.</p>
+                        <button id="showUserDataBtn" class="btn btn-secondary">View All Data</button>
+                    </div>
+
+                    <div class="card">
+                        <h2 class="card-title">OS Distribution</h2>
+                        <p class="card-description">Target OS analysis based on searches.</p>
+                        <div id="os-dist-loading">Loading...</div>
+                        <ul id="os-dist-list"></ul>
+                    </div>
+
+                    <div class="card">
+                        <h2 class="card-title">Untagged Searches</h2>
+                        <div class="flex-row mb-4">
+                            <button id="export-missing-csv-btn" class="btn btn-secondary">Export Report</button>
+                        </div>
+                        <div id="missing-tags-loading">Loading...</div>
+                        <ul id="missing-tags-list"></ul>
+                    </div>
+
+                </div>
+
+            </main>
         </div>
     </div>
 
-    <!-- Modals (retained from original UI) -->
-    <!-- Main Modal for Technique Details -->
-    <div id="technique-details-modal" class="modal-overlay">
+    <!-- Modals (Retained & Styled via CSS) -->
+
+    <!-- Technique Details Modal -->
+    <div id="technique-details-modal" class="modal-overlay hidden">
         <div class="modal-content">
-             <div class="modal-header">
+            <div class="modal-header">
                 <h2 class="modal-title" id="modal-technique-name">Technique Details</h2>
                 <span class="modal-close-btn">&times;</span>
             </div>
-            <div id="modal-coverage-content"></div>
-        </div>
-    </div>
-    
-    <!-- New Modal for OS Search Details -->
-    <div id="os-search-modal" class="modal-overlay">
-        <div class="modal-content">
-             <div class="modal-header">
-                 <h2 class="modal-title" id="os-modal-title">OS Search Details</h2>
-                 <button id="os-modal-export-csv" class="export-button">Export to CSV</button>
-                 <span class="modal-close-btn">&times;</span>
-            </div>
-            <div id="os-modal-content"></div>
+            <div id="modal-coverage-content" style="padding: 24px;"></div>
         </div>
     </div>
 
-    <!-- Generic Analysis Results Modal (for multiple doc/url uploads) -->
-    <div id="analysis-results-modal" class="modal-overlay">
+    <!-- OS Search Modal -->
+    <div id="os-search-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="os-modal-title">OS Search Details</h2>
+                <div style="margin-left: auto;">
+                    <button id="os-modal-export-csv" class="btn btn-secondary btn-sm">Export CSV</button>
+                    <span class="modal-close-btn" style="margin-left: 12px;">&times;</span>
+                </div>
+            </div>
+            <div id="os-modal-content" style="padding: 24px; max-height: 60vh; overflow-y: auto;"></div>
+        </div>
+    </div>
+
+    <!-- Analysis Results Modal -->
+    <div id="analysis-results-modal" class="modal-overlay hidden">
         <div class="modal-content">
             <div class="modal-header">
                 <h2 class="modal-title" id="analysis-modal-title">Analysis Results</h2>
                 <span class="modal-close-btn">&times;</span>
             </div>
-            <div id="analysis-modal-body" style="max-height: 60vh; overflow-y: auto;">
-                <!-- Results will be dynamically inserted here -->
-            </div>
+            <div id="analysis-modal-body" style="padding: 24px; max-height: 60vh; overflow-y: auto;"></div>
         </div>
     </div>
 
-    <!-- New: User Data Modal -->
-    <div id="userDataModal" class="modal-overlay">
-        <div class="modal-content" style="max-width: 80%; max-height: 80vh;">
-            <span class="modal-close-btn">&times;</span>
-            <h2 id="userDataModalTitle">All Uploaded Data</h2>
-            <div id="userDataContent" style="white-space: pre-wrap; overflow-y: auto; max-height: calc(80vh - 120px); border: 1px solid #ddd; padding: 10px; background-color: #f9f9f9;">
-                <!-- Data will be inserted here -->
+    <!-- User Data Modal -->
+    <div id="userDataModal" class="modal-overlay hidden">
+        <div class="modal-content" style="width: 800px; max-width: 90%;">
+            <div class="modal-header">
+                <h2 id="userDataModalTitle" class="modal-title">All Uploaded Data</h2>
+                <span class="modal-close-btn">&times;</span>
             </div>
-            <p id="userDataStatus" style="color: grey; font-size: 0.9em; margin-top: 10px; text-align: center;"></p>
+            <div id="userDataContent"
+                style="padding: 24px; white-space: pre-wrap; max-height: 60vh; overflow-y: auto; background: #f8f9fa;">
+            </div>
+            <p id="userDataStatus" style="padding: 10px 24px; color: var(--text-secondary);"></p>
         </div>
     </div>
 
-
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM Content Loaded. Initializing collapsible sections.'); // Debug log
-
-            // --- Global State ---
-            let matrixData = null;
-            let loadedLayers = [];
-            const layerColors = ["#3498db", "#f1c40f", "#e67e22", "#1abc9c", "#34495e", "#e74c3c"];
-
-            // --- Element Selectors ---
-            const matrixContainer = document.getElementById('attack-matrix');
-            const loadingIndicator = document.getElementById('loadingIndicator'); 
-            const statsContainer = document.getElementById('stats');
-
-            const techniqueModal = document.getElementById('technique-details-modal');
-            const techniqueModalCloseBtn = techniqueModal.querySelector('.modal-close-btn');
-            const modalTechniqueName = document.getElementById('modal-technique-name');
-            const modalCoverageContent = document.getElementById('modal-coverage-content');
-
-            const osModal = document.getElementById('os-search-modal');
-            const osModalCloseBtn = osModal.querySelector('.modal-close-btn');
-            const osModalTitle = document.getElementById('os-modal-title');
-            const osModalContent = document.getElementById('os-modal-content');
-            const osModalExportBtn = document.getElementById('os-modal-export-csv');
-
-            // New: User Data Modal elements
-            const userDataModal = document.getElementById('userDataModal');
-            const userDataContent = document.getElementById('userDataContent');
-            const userDataStatus = document.getElementById('userDataStatus');
-
-
-            // Collapsible section headers
-            const matrixHeader = document.getElementById('matrixHeader');
-            const aiAgentHeader = document.getElementById('aiAgentHeader');
-            const threatGroupLayersHeader = document.getElementById('threatGroupLayersHeader');
-            const riskHeatmapHeader = document.getElementById('riskHeatmapHeader');
-            const bubblePlotHeader = document.getElementById('bubblePlotHeader');
-            const documentAnalysisHeader = document.getElementById('documentAnalysisHeader');
-            const urlAnalysisHeader = document.getElementById('urlAnalysisHeader');
-            const githubRepoAnalysisHeader = document.getElementById('githubRepoAnalysisHeader'); 
-            const userDataManagementHeader = document.getElementById('userDataManagementHeader'); // New: User Data Management Header
-
-
-            // Collapsible content areas
-            const matrixContent = document.getElementById('matrixContent');
-            const aiQuerySection = document.getElementById('aiQuerySection'); 
-            const threatGroupLayersContent = document.getElementById('threatGroupLayersContent');
-            const heatmapSectionContent = document.getElementById('heatmap-section-content');
-            const bubblePlotContent = document.getElementById('bubble-plot-content');
-            const docAnalysisContent = document.getElementById('doc-analysis-content');
-            const urlAnalysisContent = document.getElementById('url-analysis-content');
-            const githubRepoAnalysisContent = document.getElementById('github-repo-analysis-content'); 
-            const userDataManagementContent = document.getElementById('userDataManagementContent'); // New: User Data Management Content
-            const osDistContent = document.getElementById('os-dist-content');
-            const missingTagsContent = document.getElementById('missing-tags-content');
-
-
-            const exportMissingBtn = document.getElementById('export-missing-csv-btn');
-            const exportMatrixBtn = document.getElementById('export-matrix-csv-btn');
-            const navigatorFileInput = document.getElementById('navigator-file-input');
-            const clearLayersBtn = document.getElementById('clear-layers-btn');
-            const layerList = document.getElementById('layer-list');
-            
-            const generateHeatmapBtn = document.getElementById('generate-heatmap-btn');
-            const heatmapMatrixContainer = document.getElementById('heatmap-matrix');
-            const heatmapLoading = document.getElementById('heatmapLoading'); 
-            
-            const generateBubblePlotBtn = document.getElementById('generate-bubble-plot-btn');
-            const bubblePlotContainer = document.getElementById('bubble-plot-svg');
-            const bubblePlotLoading = document.getElementById('bubble-plot-loading');
-
-            // Document Analysis elements
-            const documentUploadInput = document.getElementById('documentUpload'); 
-            const docAnalysisLoading = document.getElementById('doc-analysis-loading');
-            const docAnalysisResults = document.getElementById('doc-analysis-results');
-
-            const osDistLoading = document.getElementById('os-dist-loading');
-            const osDistList = document.getElementById('os-dist-list');
-
-            // URL Analysis elements
-            const urlInput = document.getElementById('url-input'); 
-            const analyzeUrlBtn = document.getElementById('analyze-url-btn');
-            const urlAnalysisLoading = document.getElementById('url-analysis-loading');
-            const urlAnalysisResults = document.getElementById('url-analysis-results');
-
-            // GitHub Repo Analysis elements
-            const githubRepoInput = document.getElementById('github-repo-input');
-            const analyzeGithubRepoBtn = document.getElementById('analyze-github-repo-btn');
-            const githubRepoAnalysisLoading = document.getElementById('github-repo-analysis-loading');
-            const githubRepoAnalysisResults = document.getElementById('github-repo-analysis-results');
-
-            // New: Show User Data Button
-            const showUserDataBtn = document.getElementById('showUserDataBtn');
-
-
-            // AI Agent elements
-            const aiQueryInput = document.getElementById('ai-query-input'); 
-            const sendAiQueryBtn = document.getElementById('send-ai-query-btn');
-            const aiLoading = document.getElementById('ai-loading');
-            const aiResponseArea = document.getElementById('ai-response-area');
-            const useUserDataCheckbox = document.getElementById('useUserDataCheckbox'); 
-
-            // Generic analysis results modal for multiple uploads/URLs/GitHub
-            const analysisResultsModal = document.getElementById('analysis-results-modal');
-            const analysisModalTitle = document.getElementById('analysis-modal-title');
-            const analysisModalBody = document.getElementById('analysis-modal-body');
-
-
-            // --- Event Listeners ---
-            function setupCollapsibleSections() {
-                document.querySelectorAll('.collapsible-header').forEach(header => {
-                    console.log('Attaching click listener to:', header.id); // Debug log
-                    header.addEventListener('click', function() {
-                        console.log('Header clicked:', this.id); // Debug log
-                        const content = this.nextElementSibling;
-                        const arrow = this.querySelector('.arrow');
-                        const isHidden = !content.classList.contains('show');
-
-                        this.classList.toggle('active');
-                        if (isHidden) {
-                            content.classList.add('show');
-                            arrow.innerHTML = '&#9660;'; // Down-pointing triangle
-                            console.log('Content shown for:', this.id); // Debug log
-                            // Load data/render if not already loaded/rendered
-                            if (this.id === 'matrixHeader' && matrixData && !matrixContainer.dataset.rendered) {
-                                renderMainMatrix();
-                                matrixContainer.dataset.rendered = 'true';
-                            } else if (this.id === 'threatGroupLayersHeader' && loadedLayers.length === 0 && !layerList.dataset.loaded) {
-                                updateLayerList(); // Initial update for empty state
-                                layerList.dataset.loaded = 'true';
-                            } else if (this.id === 'riskHeatmapHeader' && !heatmapMatrixContainer.dataset.rendered) {
-                                renderRiskMap();
-                                heatmapMatrixContainer.dataset.rendered = 'true';
-                            } else if (this.id === 'bubblePlotHeader' && !bubblePlotContainer.dataset.rendered) {
-                                renderBubblePlot();
-                                bubblePlotContainer.dataset.rendered = 'true';
-                            } else if (this.id === 'documentAnalysisHeader' && !docAnalysisContent.dataset.loaded) {
-                                docAnalysisContent.dataset.loaded = 'true';
-                            } else if (this.id === 'urlAnalysisHeader' && !urlAnalysisContent.dataset.loaded) {
-                                urlAnalysisContent.dataset.loaded = 'true';
-                            } else if (this.id === 'githubRepoAnalysisHeader' && !githubRepoAnalysisContent.dataset.loaded) { 
-                                githubRepoAnalysisContent.dataset.loaded = 'true';
-                            } else if (this.id === 'userDataManagementHeader' && !userDataManagementContent.dataset.loaded) { // New: User Data Management
-                                // No initial load needed, just prepare the section
-                                userDataManagementContent.dataset.loaded = 'true';
-                            } else if (this.id === 'osAnalysisHeader' && !osDistContent.dataset.loaded) {
-                                fetchOsDistributionData();
-                                osDistContent.dataset.loaded = 'true';
-                            } else if (this.id === 'untaggedSearchesHeader' && !missingTagsContent.dataset.loaded) {
-                                fetchMissingTagsData();
-                                missingTagsContent.dataset.loaded = 'true';
-                            }
-                        } else {
-                            content.classList.remove('show');
-                            arrow.innerHTML = '&#9654;'; // Right-pointing triangle
-                            console.log('Content hidden for:', this.id); // Debug log
-                        }
-                    });
-                });
-            }
-
-            // Initial setup for collapsible sections
-            setupCollapsibleSections();
-
-            // Ensure all collapsible content is initially hidden
-            document.querySelectorAll('.collapsible-content').forEach(content => {
-                content.classList.remove('show');
-            });
-
-            exportMissingBtn.onclick = () => {
-                window.location.href = '/api/missing_tags/csv';
-            };
-            exportMatrixBtn.onclick = () => {
-                window.location.href = '/api/matrix/csv';
-            };
-
-            // Close buttons for all modals
-            document.querySelectorAll('.modal-overlay .modal-close-btn').forEach(btn => {
-                btn.onclick = function() {
-                    this.closest('.modal-overlay').style.display = 'none';
-                };
-            });
-
-            // Close modals when clicking outside
-            window.onclick = (event) => {
-                if (event.target === techniqueModal) {
-                    techniqueModal.style.display = 'none';
-                }
-                if (event.target === osModal) {
-                    osModal.style.display = 'none';
-                }
-                if (event.target === analysisResultsModal) {
-                    analysisResultsModal.style.display = 'none';
-                }
-                if (event.target === userDataModal) { // New: Close User Data Modal
-                    userDataModal.style.display = 'none';
-                }
-            };
-
-
-            // Document Analysis - Multiple Files
-            documentUploadInput.addEventListener('change', async (event) => {
-                const files = event.target.files;
-                if (files.length === 0) {
-                    alert('Please select one or more files to upload.');
-                    return;
-                }
-
-                docAnalysisLoading.style.display = 'block';
-                docAnalysisResults.innerHTML = ''; // Clear previous results
-
-                const formData = new FormData();
-                for (let i = 0; i < files.length; i++) {
-                    formData.append('files', files[i]); // Append each file with the name 'files'
-                }
-
-                try {
-                    const response = await fetch('/api/analyze_document', {
-                        method: 'POST',
-                        body: formData
-                    });
-                    const data = await response.json();
-
-                    if (data.error) {
-                        docAnalysisResults.innerHTML = `<li style="color: red;">Error: ${data.error}</li>`;
-                        showAnalysisResultsModal([{ filename: "Upload Error", status: "failed", error: data.error }]);
-                        return;
-                    }
-                    
-                    // Display results in the generic analysis modal
-                    showAnalysisResultsModal(data.results);
-
-                } catch (error) {
-                    console.error('Error analyzing document(s):', error);
-                    showAnalysisResultsModal([{ filename: "Upload Error", status: "failed", error: `An error occurred during document analysis: ${error.message}` }]);
-                } finally {
-                    docAnalysisLoading.style.display = 'none';
-                    documentUploadInput.value = ''; // Clear input for next upload
-                }
-            });
-
-            // URL Analysis - Multiple URLs
-            analyzeUrlBtn.addEventListener('click', async () => {
-                const urls = urlInput.value.split('\n')
-                                        .map(url => url.trim())
-                                        .filter(url => url !== '');
-                if (urls.length === 0) {
-                    alert('Please enter one or more URLs to analyze (one per line).');
-                    return;
-                }
-
-                urlAnalysisLoading.style.display = 'block';
-                urlAnalysisResults.innerHTML = ''; // Clear previous results
-                
-                const allResults = [];
-                let hasError = false;
-
-                for (const url of urls) {
-                    try {
-                        const response = await fetch('/api/analyze_url', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({ url: url })
-                        });
-                        const data = await response.json();
-
-                        if (data.error) {
-                            allResults.push({ source_url: url, status: 'failed', error: data.error });
-                            hasError = true;
-                            console.error(`Error analyzing URL ${url}:`, data.error);
-                        } else {
-                            allResults.push({ ...data, source_url: url, status: 'processed' });
-                        }
-                    } catch (error) {
-                        allResults.push({ source_url: url, status: 'failed', error: `Network or unexpected error: ${error.message}` });
-                        hasError = true;
-                        console.error(`Error analyzing URL ${url}:`, error);
-                    }
-                }
-                
-                showAnalysisResultsModal(allResults); // Display all results in the modal
-
-                urlAnalysisLoading.style.display = 'none';
-                urlInput.value = ''; // Clear textarea for next input
-            });
-
-            // GitHub Repo Analysis - New Feature
-            analyzeGithubRepoBtn.addEventListener('click', async () => {
-                const repoUrls = githubRepoInput.value.split('\n')
-                                                .map(url => url.trim())
-                                                .filter(url => url !== '');
-                if (repoUrls.length === 0) {
-                    alert('Please enter one or more GitHub repository URLs to analyze (one per line).');
-                    return;
-                }
-
-                githubRepoAnalysisLoading.style.display = 'block';
-                githubRepoAnalysisResults.innerHTML = ''; // Clear previous results
-
-                const allResults = [];
-
-                for (const repoUrl of repoUrls) {
-                    try {
-                        const response = await fetch('/api/analyze_github_repo', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({ repo_url: repoUrl })
-                        });
-                        const data = await response.json();
-
-                        if (data.error) {
-                            allResults.push({ source_url: repoUrl, status: 'failed', error: data.error });
-                            console.error(`Error analyzing GitHub repo ${repoUrl}:`, data.error);
-                        } else {
-                            // GitHub analysis returns an array of file results, so flatten them
-                            data.results.forEach(fileResult => {
-                                allResults.push({
-                                    source_url: repoUrl, // Keep the original repo URL for context
-                                    file_path: fileResult.file_path,
-                                    status: fileResult.status,
-                                    error: fileResult.error,
-                                    word_count: fileResult.word_count,
-                                    techniques: fileResult.techniques
-                                });
-                            });
-                        }
-                    } catch (error) {
-                        allResults.push({ source_url: repoUrl, status: 'failed', error: `Network or unexpected error: ${error.message}` });
-                        console.error(`Error analyzing GitHub repo ${repoUrl}:`, error);
-                    }
-                }
-
-                showAnalysisResultsModal(allResults); // Display all results in the modal
-
-                githubRepoAnalysisLoading.style.display = 'none';
-                githubRepoInput.value = ''; // Clear textarea for next input
-            });
-
-
-            // AI Agent Event Listener
-            sendAiQueryBtn.addEventListener('click', async () => {
-                const query = aiQueryInput.value.trim();
-                if (!query) {
-                    aiResponseArea.innerHTML = '<p style="color: red;">Please enter a query for the AI.</p>';
-                    return;
-                }
-
-                aiLoading.style.display = 'block';
-                aiResponseArea.innerHTML = ''; // Clear previous response
-
-                try {
-                    const response = await fetch('/api/ai_query', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ 
-                            query: query,
-                            use_user_data: useUserDataCheckbox.checked // Send checkbox state
-                        })
-                    });
-                    const data = await response.json();
-
-                    if (data.error) {
-                        aiResponseArea.innerHTML = `<p style="color: red;">Error: ${data.error}</p>`;
-                    } else {
-                        aiResponseArea.innerHTML = `<p>${data.response}</p>`;
-                    }
-                } catch (error) {
-                    console.error('Error sending AI query:', error);
-                    aiResponseArea.innerHTML = `<p style="color: red;">An error occurred while communicating with the AI agent. Please check the backend logs.</p>`;
-                } finally {
-                    aiLoading.style.display = 'none';
-                }
-            });
-
-            // Add Shift + Enter to submit AI query
-            aiQueryInput.addEventListener('keydown', (event) => {
-                if (event.shiftKey && event.key === 'Enter') {
-                    event.preventDefault(); // Prevent new line
-                    sendAiQueryBtn.click(); // Trigger the click event on the send button
-                }
-            });
-
-
-            // Navigator Layer Handling
-            navigatorFileInput.addEventListener('change', (event) => {
-                const files = event.target.files;
-                if (!files.length) return;
-
-                Array.from(files).forEach(file => {
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        try {
-                            const layer = JSON.parse(e.target.result);
-                            layer.color = layerColors[loadedLayers.length % layerColors.length];
-                            loadedLayers.push(layer);
-                            updateLayerList();
-                            renderRiskMap(); // Re-render heatmap to show new layer
-                            renderBubblePlot(); // Re-render bubble plot for new layer
-                            renderMainMatrix(); // Re-render main matrix to show new layer highlights
-                        } catch (error) {
-                            alert('Failed to parse JSON file: ' + file.name + '\n' + error.message);
-                            console.error('Error parsing layer JSON:', error);
-                        }
-                    };
-                    reader.readAsText(file);
-                });
-            });
-
-            clearLayersBtn.addEventListener('click', () => {
-                loadedLayers = [];
-                updateLayerList();
-                renderRiskMap(); // Clear heatmap visualization
-                renderBubblePlot(); // Clear bubble plot
-                renderMainMatrix(); // Re-render main matrix to clear layer highlights
-            });
-
-            function updateLayerList() {
-                layerList.innerHTML = '';
-                if (loadedLayers.length === 0) {
-                    layerList.innerHTML = '<li>No Navigator layers loaded.</li>';
-                    return;
-                }
-                loadedLayers.forEach((layer, index) => {
-                    const li = document.createElement('li');
-                    li.innerHTML = `
-                        <span class="layer-color-swatch" style="background-color: ${layer.color};"></span>
-                        <strong>${layer.name}</strong> (${layer.domain})
-                        <button class="remove-layer-btn" data-index="${index}">&times;</button>
-                        <div class="layer-description" style="display: none;">
-                            <p><strong>Description:</strong> ${layer.description || 'N/A'}</p>
-                            <p><strong>Version:</strong> ${layer.version || 'N/A'}</p>
-                        </div>
-                    `;
-                    li.style.color = layer.color;
-                    // Toggle description visibility
-                    li.querySelector('strong').addEventListener('click', function() {
-                        const descriptionDiv = this.nextElementSibling.nextElementSibling; // Adjust if structure changes
-                        if (descriptionDiv) {
-                            descriptionDiv.style.display = descriptionDiv.style.display === 'none' ? 'block' : 'none';
-                        }
-                    });
-                    li.querySelector('.remove-layer-btn').addEventListener('click', (event) => {
-                        const indexToRemove = parseInt(event.target.dataset.index);
-                        loadedLayers.splice(indexToRemove, 1);
-                        updateLayerList();
-                        renderRiskMap();
-                        renderBubblePlot();
-                        renderMainMatrix();
-                    });
-                    layerList.appendChild(li);
-                });
-            }
-
-            // Initial call to update layer list
-            updateLayerList();
-
-            // --- Data Fetching and Rendering Functions ---
-
-            async function fetchMissingTagsData() {
-                missingTagsLoading.style.display = 'block';
-                missingTagsList.innerHTML = '';
-                try {
-                    const response = await fetch('/api/missing_tags');
-                    const data = await response.json();
-                    if (data.error) {
-                        missingTagsList.innerHTML = `<li style="color: red;">Error: ${data.error}</li>`;
-                        return;
-                    }
-                    if (data.length === 0) {
-                        missingTagsList.innerHTML = '<li>All searches have MITRE ATT&CK tags.</li>';
-                    } else {
-                        data.forEach(search => {
-                            const li = document.createElement('li');
-                            const html_url_link = search.html_url ? `<a href="${search.html_url}" target="_blank">${search.source_file.split('/').pop()}</a>` : search.source_file.split('/').pop();
-                            li.innerHTML = `
-                                <span class="missing-search-name">${search.name}</span><br>
-                                <span class="missing-source-file">Source: ${html_url_link}</span><br>
-                                <span class="missing-query">Query: ${search.query}</span>
-                            `;
-                            missingTagsList.appendChild(li);
-                        });
-                    }
-                } catch (error) {
-                    console.error('Error fetching missing tags:', error);
-                    missingTagsList.innerHTML = '<li style="color: red;">Failed to load missing tags report.</li>';
-                } finally {
-                    missingTagsLoading.style.display = 'none';
-                }
-            }
-
-            async function fetchOsDistributionData() {
-                osDistLoading.style.display = 'block';
-                osDistList.innerHTML = '';
-                try {
-                    const response = await fetch('/api/os_distribution');
-                    const data = await response.json();
-                    if (data.error) {
-                        osDistList.innerHTML = `<li style="color: red;">Error: ${data.error}</li>`;
-                        return;
-                    }
-                    const totalSearches = Object.values(data).reduce((sum, count) => sum + count, 0);
-                    if (totalSearches === 0) {
-                        osDistList.innerHTML = '<li>No searches found to categorize.</li>';
-                        return;
-                    }
-
-                    for (const osName in data) {
-                        const count = data[osName];
-                        const percentage = ((count / totalSearches) * 100).toFixed(1);
-                        const li = document.createElement('li');
-                        li.innerHTML = `<strong>${osName}</strong>: ${count} searches (${percentage}%)`;
-                        li.dataset.os = osName; // Store OS name for modal
-                        li.addEventListener('click', () => showOsSearchesModal(osName));
-                        osDistList.appendChild(li);
-                    }
-
-                } catch (error) {
-                    console.error('Error fetching OS distribution:', error);
-                    osDistList.innerHTML = '<li style="color: red;">Failed to load OS distribution report.</li>';
-                } finally {
-                    osDistLoading.style.display = 'none';
-                }
-            }
-
-            async function showOsSearchesModal(osName) {
-                osModalTitle.innerText = `${osName} Searches`;
-                osModalContent.innerHTML = '<p style="text-align: center;">Loading searches...</p>';
-                osModalExportBtn.dataset.os = osName; // Set data-os for export button
-                osModal.style.display = 'flex'; // Use flex to center
-
-                try {
-                    const response = await fetch(`/api/searches_by_os/${encodeURIComponent(osName)}`);
-                    const data = await response.json();
-
-                    if (data.error) {
-                        osModalContent.innerHTML = `<p style="color: red;">Error: ${data.error}</p>`;
-                        return;
-                    }
-
-                    if (data.length === 0) {
-                        osModalContent.innerHTML = `<p>No searches found for ${osName}.</p>`;
-                    } else {
-                        const ul = document.createElement('ul');
-                        ul.style.listStyleType = 'none';
-                        ul.style.paddingLeft = '0';
-                        data.forEach(search => {
-                            const li = document.createElement('li');
-                            li.style.marginBottom = '10px';
-                            li.style.borderBottom = '1px solid #eee';
-                            li.style.paddingBottom = '5px';
-
-                            const html_url_link = search.html_url ? `<a href="${search.html_url}" target="_blank">${search.source_file.split('/').pop()}</a>` : search.source_file.split('/').pop();
-
-                            li.innerHTML = `
-                                <strong>${search.name}</strong><br>
-                                <span style="font-size: 0.9em; color: #555;">Query: </span><pre style="background-color: #f8f8f8; padding: 5px; border-radius: 3px; white-space: pre-wrap; word-break: break-all;">${search.query}</pre>
-                                <span style="font-size: 0.8em; color: #777;">Source: ${html_url_link}</span>
-                            `;
-                            ul.appendChild(li);
-                        });
-                        osModalContent.innerHTML = '';
-                        osModalContent.appendChild(ul);
-                    }
-                } catch (error) {
-                    console.error('Error fetching OS searches:', error);
-                    osModalContent.innerHTML = '<p style="color: red;">Failed to load searches for this OS.</p>';
-                }
-            }
-
-            osModalExportBtn.addEventListener('click', (event) => {
-                const osName = event.target.dataset.os;
-                if (osName) {
-                    window.location.href = `/api/searches_by_os/${encodeURIComponent(osName)}/csv`;
-                }
-            });
-
-            function renderMatrix(containerElement, isHeatmap) {
-                if (!matrixData) {
-                    console.warn("renderMatrix: matrixData is null. Cannot render."); // Debugging
-                    containerElement.innerHTML = '<p style="text-align: center;">ATT&CK Matrix data not available.</p>';
-                    return;
-                }
-
-                containerElement.innerHTML = ''; // Clear previous content
-
-                const matrixDiv = document.createElement('div');
-                matrixDiv.classList.add('matrix');
-                containerElement.appendChild(matrixDiv);
-
-                let coveredCount = 0;
-                let totalTechniques = 0;
-
-                matrixData.forEach(tactic => {
-                    const tacticColumn = document.createElement('div');
-                    tacticColumn.classList.add('tactic-column');
-
-                    const tacticHeader = document.createElement('div');
-                    tacticHeader.classList.add('tactic-header');
-                    tacticHeader.innerText = tactic.name;
-                    tacticColumn.appendChild(tacticHeader);
-
-                    const allTechniquesInTactic = [...tactic.techniques];
-                    tactic.techniques.forEach(tech => {
-                        allTechniquesInTactic.push(...tech.subtechniques);
-                    });
-
-                    allTechniquesInTactic.forEach(technique => {
-                        if (!technique.is_subtechnique) { // Only render top-level techniques and let them handle sub-techniques
-                            const techCell = document.createElement('div');
-                            techCell.classList.add('technique-cell');
-                            if (technique.is_subtechnique) {
-                                techCell.classList.add('subtechnique-cell');
-                            }
-                            techCell.innerText = technique.name;
-                            techCell.dataset.id = technique.id;
-                            techCell.dataset.name = technique.name;
-                            techCell.dataset.url = technique.url;
-
-                            let coverageClass = '';
-                            let riskClass = '';
-                            let layerUsageCount = 0;
-
-                            // Calculate layer coverage
-                            loadedLayers.forEach(layer => {
-                                layer.techniques.forEach(layerTech => {
-                                    if (layerTech.techniqueID === technique.id) {
-                                        layerUsageCount++;
-                                    }
-                                });
-                            });
-
-                            if (isHeatmap) {
-                                // Risk-based heatmap logic
-                                if (layerUsageCount > 0 && technique.covered) {
-                                    riskClass = 'risk-medium'; // Threat group uses, and we have detection
-                                } else if (layerUsageCount > 0 && !technique.covered) {
-                                    riskClass = 'risk-high'; // Threat group uses, we have NO detection
-                                } else if (layerUsageCount === 0 && technique.covered) {
-                                    riskClass = 'risk-low'; // No threat group uses, but we have detection
-                                }
-                                if (riskClass) { 
-                                    techCell.classList.add(riskClass);
-                                } 
-
-                            } else {
-                                // Standard coverage map logic
-                                if (technique.covered && layerUsageCount > 0) {
-                                    coverageClass = 'overlap-covered'; // Covered by search AND used by a loaded layer
-                                } else if (technique.covered) {
-                                    coverageClass = 'search-covered'; // Only covered by search
-                                } else if (layerUsageCount > 0) {
-                                    coverageClass = 'layer-covered'; // Only used by loaded layer (threat group)
-                                }
-                                if (coverageClass) { 
-                                    techCell.classList.add(coverageClass);
-                                }
-                            }
-                            
-                            // Track total techniques and covered techniques for stats
-                            totalTechniques++;
-                            if (technique.covered) {
-                                coveredCount++;
-                            }
-
-                            // Click handler for technique details modal
-                            if (!isHeatmap) {
-                                techCell.addEventListener('click', () => {
-                                    showTechniqueDetailsModal(technique, loadedLayers);
-                                });
-                            }
-
-                            tacticColumn.appendChild(techCell);
-
-                            // Add sub-techniques
-                            technique.subtechniques.forEach(subtech => {
-                                const subTechCell = document.createElement('div');
-                                subTechCell.classList.add('technique-cell', 'subtechnique-cell');
-                                subTechCell.innerText = subtech.name;
-                                subTechCell.dataset.id = subtech.id;
-                                subTechCell.dataset.name = subtech.name;
-                                subTechCell.dataset.url = subtech.url;
-
-                                let subCoverageClass = '';
-                                let subRiskClass = '';
-                                let subLayerUsageCount = 0;
-
-                                loadedLayers.forEach(layer => {
-                                    layer.techniques.forEach(layerTech => {
-                                        if (layerTech.techniqueID === subtech.id) {
-                                            subLayerUsageCount++;
-                                        }
-                                    });
-                                });
-
-                                if (isHeatmap) {
-{
-                                    subTechCell.addEventListener('click', () => {
-                                        showTechniqueDetailsModal(subtech, loadedLayers);
-                                    });
-                                }
-                                tacticColumn.appendChild(subTechCell);
-                                    if (subLayerUsageCount > 0 && subtech.covered) {
-                                        subRiskClass = 'risk-medium';
-                                    } else if (subLayerUsageCount > 0 && !subtech.covered) {
-                                        subRiskClass = 'risk-high';
-                                    } else if (subLayerUsageCount === 0 && subtech.covered) {
-                                        subRiskClass = 'risk-low';
-                                    }
-                                    if (subRiskClass) { 
-                                        subTechCell.classList.add(subRiskClass);
-                                    }
-                                } else {
-                                    if (subtech.covered && subLayerUsageCount > 0) {
-                                        subCoverageClass = 'overlap-covered';
-                                    } else if (subtech.covered) {
-                                        subCoverageClass = 'search-covered';
-                                    } else if (subLayerUsageCount > 0) {
-                                        subCoverageClass = 'layer-covered';
-                                    }
-                                    if (subCoverageClass) { 
-                                        subTechCell.classList.add(subCoverageClass);
-                                    }
-                                }
-
-                                totalTechniques++;
-                                if (subtech.covered) {
-                                    coveredCount++;
-                                }
-
-                                if (!isHeatmap) {
-                                    subTechCell.addEventListener('click', () => {
-                                        showTechniqueDetailsModal(subtech, loadedLayers);
-                                    });
-                                }
-                                tacticColumn.appendChild(subTechCell);
-                            });
-                        }
-                    });
-                    matrixDiv.appendChild(tacticColumn);
-                });
-
-                if (!isHeatmap) {
-                    statsContainer.innerText = `Total Techniques: ${totalTechniques} | Covered by Searches: ${coveredCount} (${((coveredCount / totalTechniques) * 100).toFixed(1)}%)`;
-                }
-            }
-
-
-            async function showTechniqueDetailsModal(technique, loadedLayers) {
-                console.log('showTechniqueDetailsModal called for technique:', technique.id); // Debug log
-                // IMPORTANT: This log confirms which version of the code is running.
-                console.log('FRONTEND_DEBUG: Attempting to display AI-powered procedural usage.'); 
-
-                modalTechniqueName.innerHTML = `${technique.name} (${technique.id}) <a href="${technique.url}" target="_blank" style="font-size: 0.6em; vertical-align: super;">&#x2197;</a>`;
-                modalCoverageContent.innerHTML = '<p style="text-align: center;">Loading details...</p>';
-                techniqueModal.style.display = 'flex'; // Ensure modal is visible
-                console.log('Modal display set to flex.'); // Debug log
-
-                let contentHtml = '';
-
-                // Display searches covering this technique
-                if (technique.searches && technique.searches.length > 0) {
-                    contentHtml += `<div class="coverage-source">
-                                        <div class="source-title">Covered by Searches (${technique.searches.length}):</div>
-                                        <div>`;
-                    technique.searches.forEach(search => {
-                        contentHtml += `<div class="search-item">
-                                            <div class="search-name">${search.name}</div>
-                                            <div class="search-query">${search.query}</div>
-                                            <div class="search-os">OS: ${search.os}</div>
-                                        </div>`;
-                    });
-                    contentHtml += `</div></div>`;
-                } else {
-                    contentHtml += `<div class="coverage-source"><div class="source-title">No direct searches cover this technique.</div></div>`;
-                }
-
-                // Fetch all groups associated with this technique from the backend
-                let techToGroupMapData = { groups: [] };
-                try {
-                    const techToGroupMapResponse = await fetch('/api/techniques/' + technique.id + '/groups');
-                    if (!techToGroupMapResponse.ok) {
-                        const errorData = await techToGroupMapResponse.json();
-                        throw new Error(errorData.error || `HTTP error! status: ${techToGroupMapResponse.status}`);
-                    }
-                    techToGroupMapData = await techToGroupMapResponse.json();
-                    console.log('DEBUG: Groups for technique from backend:', techToGroupMapData.groups);
-                } catch (error) {
-                    console.error('Error fetching groups for technique:', technique.id, error);
-                    contentHtml += `<div class="coverage-source">
-                                        <div class="source-title" style="color: red;">Error fetching threat groups: ${error.message}</div>
-                                    </div>`;
-                    modalCoverageContent.innerHTML = contentHtml; // Render with error message
-                    return; // Stop further processing if groups cannot be fetched
-                }
-
-                if (techToGroupMapData.groups && techToGroupMapData.groups.length > 0) {
-                    contentHtml += `<div class="coverage-source">
-                                        <div class="source-title">Threat Groups Using This Technique (${techToGroupMapData.groups.length}):</div>
-                                        <div id="all-groups-usage-container"></div>
-                                    </div>`;
-                    modalCoverageContent.innerHTML = contentHtml; // Render initial content structure
-
-                    const allGroupsUsageContainer = document.getElementById('all-groups-usage-container');
-
-                    // Iterate through all groups and fetch usage for each using the AI agent
-                    for (const group of techToGroupMapData.groups) {
-                        const groupDiv = document.createElement('div');
-                        groupDiv.classList.add('group-usage-item');
-                        
-                        // Construct the direct MITRE group link using the group.id (which should be the G-code)
-                        const mitreGroupLink = group.id && group.id.startsWith('G') ? `https://attack.mitre.org/groups/${group.id}/` : `https://attack.mitre.org/groups/`; // Fallback if no G-code
-                        
-                        groupDiv.innerHTML = `
-                            <h4><a href="${mitreGroupLink}" target="_blank">${group.name} (${group.id}) &#x2197;</a></h4>
-                            <div id="usage-for-${group.id.replace(/[^a-zA-Z0-9]/g, '-')}-${technique.id.replace(/[^a-zA-Z0-9]/g, '-')}" class="usage-details">Querying AI for procedural usage...</div>
-                        `;
-                        allGroupsUsageContainer.appendChild(groupDiv);
-
-                        // Fetch usage for this specific group using the AI agent
-                        (async () => {
-                            const usageElementId = `usage-for-${group.id.replace(/[^a-zA-Z0-9]/g, '-')}-${technique.id.replace(/[^a-zA-Z0-9]/g, '-')}`;
-                            const usageElement = document.getElementById(usageElementId);
-                            const aiQueryForGroup = `Give me examples of how ${group.name} has used ${technique.name} (${technique.id}).`;
-
-                            try {
-                                console.log(`FRONTEND_DEBUG: Sending AI query for group '${group.name}': '${aiQueryForGroup}'`);
-                                const aiResponse = await fetch('/api/ai_query', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ query: aiQueryForGroup, use_user_data: false }) // Assuming MITRE data is in main KB
-                                });
-                                const aiData = await aiResponse.json();
-
-                                if (aiData.error) {
-                                    usageElement.innerHTML = `<p style="color: red;">AI Query Error for ${group.name}: ${aiData.error}</p>`;
-                                } else {
-                                    usageElement.innerHTML = `<p>${aiData.response || 'No specific procedural usage details found via AI for this group.'}</p>`;
-                                }
-                            } catch (error) {
-                                console.error(`Error querying AI for procedural usage for group ${group.name}:`, error);
-                                usageElement.innerHTML = `<p style="color: red;">Failed to query AI for procedural usage for ${group.name} due to network error.</p>`;
-                            } finally {
-                                // Ensure loading message is removed even on error
-                                if (usageElement.innerHTML.includes('Querying AI for procedural usage...')) {
-                                    // If it still says loading, and we got an error, replace it.
-                                    // If it was already replaced by a successful response, do nothing.
-                                    if (usageElement.innerHTML.includes('Querying AI for procedural usage...')) {
-                                        usageElement.innerHTML = `<p style="color: red;">Failed to load procedural usage for ${group.name}.</p>`;
-                                    }
-                                }
-                            }
-                        })(); // Immediately invoke the async function
-                    }
-                } else {
-                    contentHtml += `<div class="coverage-source">
-                                        <div class="source-title">No known threat groups use this technique, so no procedural usage example from MITRE ATT&ACK can be displayed.</div>
-                                    </div>`;
-                    modalCoverageContent.innerHTML = contentHtml; // Render all content at once if no groups
-                }
-            }
-
-            function renderBubblePlot() {
-                if (loadedLayers.length === 0) {
-                    bubblePlotContainer.innerHTML = '<p style="text-align: center; padding: 20px;">Load at least one Navigator layer to generate the bubble plot.</p>';
-                    return;
-                }
-
-                bubblePlotLoading.style.display = 'block';
-                const svg = d3.select("#bubble-plot-svg");
-                svg.selectAll("*").remove(); // Clear previous plot
-
-                const width = svg.node().getBoundingClientRect().width;
-                const height = 600; // Fixed height for consistency
-
-                const techniqueCounts = {}; // Use a plain object for counts
-                loadedLayers.forEach(layer => {
-                    layer.techniques.forEach(tech => {
-                        if (tech.enabled) {
-                            techniqueCounts[tech.techniqueID] = (techniqueCounts[tech.techniqueID] || 0) + 1;
-                        }
-                    });
-                });
-
-                const data = Object.entries(techniqueCounts).map(([id, count]) => ({
-                    id: id,
-                    value: count
-                })).sort((a, b) => b.value - a.value);
-
-                const color = d3.scaleOrdinal(d3.schemeCategory10);
-
-                const pack = d3.pack()
-                    .size([width, height])
-                    .padding(10);
-
-                const root = d3.hierarchy({ children: data })
-                    .sum(d => d.value)
-                    .sort((a, b) => b.value - a.value);
-
-                const nodes = pack(root).leaves();
-
-                const node = svg.selectAll(".node")
-                    .data(nodes)
-                    .enter().append("g")
-                    .attr("class", "node")
-                    .attr("transform", d => `translate(${d.x},${d.y})`);
-
-                node.append("circle")
-                    .attr("r", d => d.r)
-                    .attr("fill", d => color(d.data.id));
-
-                node.append("text")
-                    .attr("class", "bubble-label")
-                    .attr("dy", "0.3em")
-                    .text(d => d.data.id)
-                    .style("font-size", function(d) { // Changed to a regular function
-                        // 'this' now correctly refers to the SVGTextElement
-                        const textLength = this.getComputedTextLength();
-                        // Avoid division by zero if textLength is 0
-                        const scaleFactor = textLength > 0 ? (2 * d.r - 8) / textLength * 24 : 0;
-                        return Math.min(2 * d.r, scaleFactor) + "px";
-                    })
-                    .attr("fill", "white");
-
-                // Tooltip
-                const tooltip = d3.select("body").append("div")
-                    .attr("class", "bubble-tooltip")
-                    .style("opacity", 0);
-
-                node.on("mouseover", function(event, d) {
-                    tooltip.transition()
-                        .duration(200)
-                        .style("opacity", .9);
-                    tooltip.html(`<strong>${d.data.id}</strong><br/>Frequency: ${d.data.value}`)
-                        .style("left", (event.pageX + 10) + "px")
-                        .style("top", (event.pageY - 28) + "px");
-                })
-                .on("mouseout", function(d) {
-                    tooltip.transition()
-                        .duration(500)
-                        .style("opacity", 0);
-                });
-
-                bubblePlotLoading.style.display = 'none';
-            }
-
-            function renderMainMatrix() {
-                if(matrixData) {
-                    loadingIndicator.style.display = 'none';
-                    renderMatrix(matrixContainer, false);
-                }
-            }
-            
-            function renderRiskMap() {
-                if (!matrixData) { heatmapMatrixContainer.innerHTML = '<p style="text-align: center; padding: 20px;">Matrix data not loaded yet.</p>'; return; }
-                 if (loadedLayers.length === 0) { heatmapMatrixContainer.innerHTML = '<p style="text-align: center; padding: 20px;">Load at least one Navigator layer to generate a risk map.</p>'; return; }
-                heatmapLoading.style.display = 'block';
-                renderMatrix(heatmapMatrixContainer, true);
-                heatmapLoading.style.display = 'none';
-            }
-
-            // Generic function to show analysis results in a modal
-            function showAnalysisResultsModal(results) {
-                analysisModalTitle.innerText = `Analysis Results (${results.length} Item${results.length !== 1 ? 's' : ''})`;
-                analysisModalBody.innerHTML = ''; // Clear previous content
-
-                results.forEach(item => {
-                    const itemDiv = document.createElement('div');
-                    itemDiv.style.marginBottom = '15px';
-                    itemDiv.style.paddingBottom = '10px';
-                    itemDiv.style.borderBottom = '1px dashed #eee';
-
-                    const sourceName = item.filename || item.source_url || item.file_path || 'Unknown Source'; 
-                    itemDiv.innerHTML += `<h3>${sourceName} (Status: ${item.status})</h3>`;
-                    
-                    if (item.error) {
-                        itemDiv.innerHTML += `<p style="color: red;">Error: ${item.error}</p>`;
-                    }
-
-                    if (item.word_count !== undefined) { 
-                        itemDiv.innerHTML += `<p><strong>Words Extracted:</strong> ${item.word_count}</p>`;
-                    }
-
-                    if (item.techniques && item.techniques.length > 0) {
-                        itemDiv.innerHTML += `<h4>Detected MITRE ATT&CK Techniques:</h4><ul>` +
-                                            item.techniques.map(t => `<li>${t.id} (${t.groups.map(g => g.name).join(', ') || 'No Groups'})</li>`).join('') +
-                                            `</ul>`;
-                    } else if (item.status !== "failed") {
-                        itemDiv.innerHTML += `<p>No MITRE ATT&CK techniques detected.</p>`;
-                    }
-
-                    if (item.urls && item.urls.length > 0) {
-                        itemDiv.innerHTML += `<h4>Extracted URLs:</h4><ul>` +
-                                            item.urls.map(url => `<li><a href="${url}" target="_blank">${url}</a></li>`).join('') +
-                                            `</ul>`;
-                    }
-                    if (item.ip_addresses && item.ip_addresses.length > 0) {
-                        itemDiv.innerHTML += `<h4>Extracted IP Addresses:</h4><ul>` +
-                                            item.ip_addresses.map(ip => `<li>${ip}</li>`).join('') +
-                                            `</ul>`;
-                    }
-                    if (item.code_snippets && item.code_snippets.length > 0) {
-                        itemDiv.innerHTML += `<h4>Extracted Code Snippets:</h4><pre style="background-color: #f0f0f0; padding: 10px; border-radius: 5px; white-space: pre-wrap; word-break: break-all;"><code>` +
-                                            item.code_snippets.map(snippet => `// File: ${snippet.file_path}\n${snippet.code}`).join('\n\n') +
-                                            `</code></pre>`;
-                    }
-                    analysisModalBody.appendChild(itemDiv);
-                });
-
-                analysisResultsModal.style.display = "flex"; // Use flex to center
-            }
-
-            // New: Event listener for showing all user data
-            if (showUserDataBtn) {
-                showUserDataBtn.addEventListener('click', async () => {
-                    userDataStatus.textContent = "Fetching all uploaded data...";
-                    userDataContent.textContent = ""; // Clear previous content
-                    userDataModal.style.display = 'flex'; // Show modal
-
-                    try {
-                        const response = await fetch('/api/user_data');
-                        if (!response.ok) {
-                            const errorData = await response.json();
-                            throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-                        }
-                        const data = await response.json();
-
-                        if (data.error) {
-                            userDataStatus.textContent = `Error: ${data.error}`;
-                        } else if (data.data && data.data.length > 0) {
-                            userDataStatus.textContent = `Successfully loaded ${data.data.length} documents.`;
-                            // Format data for display
-                            let displayHtml = '';
-                            data.data.forEach((item, index) => {
-                                displayHtml += `--- Document ${index + 1} ---\n`;
-                                displayHtml += `Metadata: ${JSON.stringify(item.metadata, null, 2)}\n`;
-                                displayHtml += `Content:\n${item.content}\n\n`;
-                            });
-                            userDataContent.textContent = displayHtml; // Use textContent for pre-wrap
-                        } else {
-                            userDataStatus.textContent = "No uploaded data found.";
-                        }
-
-                    } catch (error) {
-                        console.error('Error fetching all user data:', error);
-                        userDataStatus.textContent = `Failed to load data: ${error.message}. Please check console for details.`;
-                    }
-                });
-            }
-
-
-            // Initial load of matrix data
-            fetch('/api/matrix')
-                .then(response => {
-                    if (!response.ok) {
-                        return response.json().then(errorData => {
-                            throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-                        });
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    if (data.error) {
-                        statsContainer.innerText = `Error: ${data.error}`;
-                        return;
-                    }
-                    matrixData = data;
-                    renderMainMatrix(); // Render matrix initially when data is loaded
-                })
-                .catch(error => {
-                    statsContainer.innerText = "Failed to load ATT&CK data. Please check the backend server.";
-                    console.error('Error fetching ATT&CK data:', error);
-                });
-        });
-    </script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
+
 </html>

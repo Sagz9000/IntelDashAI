@@ -9,7 +9,7 @@ services:
       # Uncomment the line below (and remove the '#' at the beginning of the line)
       # to mount your local Search directory into the container.
       # This allows for local search definitions to be reflected in the app.
-       - ./Searches:/app/Searches
+      - ./Searches:/app/Searches
     environment:
       # These environment variables are used by app.py to connect to Ollama and ChromaDB
       - OLLAMA_BASE_URL=http://ollama:11434
@@ -29,13 +29,13 @@ services:
       - "11434:11434" # Expose Ollama's default port
     volumes:
       - ollama_models:/root/.ollama # Persistent storage for Ollama models
-      - ./entrypoint.sh:/entrypoint.sh # Mount the entrypoint script
+      - ./entrypoint_unix.sh:/entrypoint.sh # Mount the entrypoint script
     container_name: ollama-service-78
     # Use the custom entrypoint script directly.
     # The script itself now handles curl installationx and Ollama startup/model pulling.
     entrypoint: /entrypoint.sh
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434"]
+      test: [ "CMD", "curl", "-f", "http://localhost:11434" ]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -46,7 +46,7 @@ services:
           devices:
             - driver: nvidia
               count: all # Use all available NVIDIA GPUs
-              capabilities: [gpu]
+              capabilities: [ gpu ]
 
   chromadb:
     # Build ChromaDB image from custom Dockerfile to include netcat
@@ -61,7 +61,7 @@ services:
     # Let the custom image's inherited entrypoint handle ChromaDB startup
     healthcheck:
       # Healthcheck using netcat to check if port 8000 is open
-      test: ["CMD", "bash", "-c", "nc -z localhost 8000"]
+      test: [ "CMD", "bash", "-c", "nc -z localhost 8000" ]
       interval: 10s # Check more frequently
       timeout: 5s
       retries: 10 # More retries for robustness
