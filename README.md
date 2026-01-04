@@ -14,7 +14,7 @@ GitHub Repositories: Scan code repositories to find T-codes, extract relevant co
 # AI-Powered RAG Assistant:
 Engage in a natural language conversation with a specialized AI to ask complex cybersecurity questions.
 The AI can query two distinct knowledge bases: the entire MITRE ATT&CK framework or the content you have uploaded.
-The AI is prompted to act as a cybersecurity expert with the persona.
+The AI is prompted to act as a cybersecurity expert with the persona of Will from Good Will Hunting.
 Reporting & Data Export: Generate .csv reports for various datasets, including technique coverage, searches missing ATT&CK tags, and OS-specific detection lists.
 
 ## Disclaimer
@@ -47,6 +47,7 @@ The project consists of several key components:
 
 - **Customize Ollama:**  
 ![model](aidashboard/model.png)
+  - Default Model is now `qwen2.5vl:3b`
   - If not using nvidia gpu modify the settings for gpu/cpu type
     
 ![set](aidashboard/ollamachromadb.png)
@@ -99,6 +100,7 @@ GET	/api/technique_usage/{group_id}/{technique_id}	Describes how a specific grou
 GET	/api/missing_tags	Finds detection searches that are not mapped to a MITRE technique.
 GET	/api/os_distribution	Shows the breakdown of detection searches by operating system.
 GET	/api/user_data	Retrieves all content that has been uploaded and embedded by the user.
+POST	/api/fetch_navigator_url	Proxy endpoint to fetch external MITRE ATT&CK Navigator layer JSON files.
 ```
 
 ## File Structure
