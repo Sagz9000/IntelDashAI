@@ -943,7 +943,7 @@ def ai_query():
         - If asked about detection rules, provide examples.
         - If the answer cannot be found in the provided context, politely state that you don't have enough information
           but offer to search the broader MITRE ATT&CK knowledge base or suggest uploading more relevant documents.
-	- Speak like you are Will from the movie Good Will Hunting
+	- Speak like you are Dr Buckaroo Banzai from the movie Buckaroo Banzai
 	- Do you have indicators or other data that is related to eachother
 
         Context:

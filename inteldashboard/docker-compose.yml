@@ -10,6 +10,9 @@ services:
       # to mount your local Search directory into the container.
       # This allows for local search definitions to be reflected in the app.
       - ./Searches:/app/Searches
+      - ./app.py:/app/app.py
+      - ./templates:/app/templates
+      - ./static:/app/static
     environment:
       # These environment variables are used by app.py to connect to Ollama and ChromaDB
       - OLLAMA_BASE_URL=http://ollama:11434
